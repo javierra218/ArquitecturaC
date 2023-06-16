@@ -1,6 +1,8 @@
 #include <StateMachineLib.h>
 #include <LiquidCrystal.h>
 #include <Keypad.h>
+#include <AsyncTaskLib.h>
+#include <DHTStable.h>
 
 // Definición de estados
 enum States {
@@ -33,8 +35,15 @@ Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 // LiquidCrystal
 LiquidCrystal lcd(12, 11, 10, 9, 8, 7);
 
+// DHT11
+const uint8_t DHT_PIN = 4;
+DHTStable dht(DHT_PIN);
+
 // Instancia de StateMachine
 StateMachine stateMachine;
+
+// AsyncTask para lectura del sensor DHT11
+AsyncTask readDhtTask;
 
 // Función para verificar la contraseña
 bool checkPassword() {
@@ -97,6 +106,16 @@ void eventDoorsWindowsState() {
 
 void monitorEnvironmentState() {
   // Lógica y acciones correspondientes al estado de monitoreo ambiental
+
+  // Tarea asíncrona para leer el sensor DHT11
+  if (readDhtTask.isRunning() == false) {
+    readDhtTask.start([&]() {
+      float temperature = dht.readTemperature();
+      float humidity = dht.readHumidity();
+      // Realizar acciones con los datos leídos del sensor DHT11
+      // ...
+    });
+  }
 }
 
 void alarmEnvironmentState() {
@@ -112,6 +131,9 @@ void setup() {
   lcd.begin(16, 2);
   lcd.print("Clave:");
 
+  // Inicialización del sensor DHT11
+  dht.begin();
+
   // Agregar estados a la máquina de estados
   stateMachine.addState(SECURITY_CHECK, securityCheckState);
   stateMachine.addState(EVENT_DOORS_WINDOWS, eventDoorsWindowsState);
@@ -126,6 +148,9 @@ void setup() {
 void loop() {
   // Actualizar la máquina de estados
   stateMachine.update();
+
+  // Actualizar la tarea asíncrona
+  readDhtTask.update();
 
   // Otras lógicas o acciones que desees realizar en el bucle principal
 }
