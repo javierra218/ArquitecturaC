@@ -4,100 +4,143 @@
 \author Javier Rojas <javierra@unicauca.edu.co>
 \brief  password.
 *****************************************************************************/
-#include <LiquidCrystal.h>  // Library for the LiquidCrystal object
-#include <Keypad.h>         // Library for the Keypad object
-#include <string.h>         // Library for string comparison
+#include <LiquidCrystal.h>
+#include <Keypad.h>
+
+/* Display */
+LiquidCrystal lcd(12, 11, 10, 9, 8, 7);
 
 /********************************************/ /**
  *  Keypad
  ***********************************************/
-const char password[] = "123456";              // Password to be entered
-char inPassword[7];                            // Array to store the entered password
-const byte MAX_PASSWORD_LENGTH = 6;            // Maximum length of the password
-byte passwordLength = 0;                       // Length of the entered password
-byte tryCount = 0;                             // Number of attempts to enter the password
-
-const byte ROWS = 4;       // Number of rows in the keypad
-const byte COLS = 4;       // Number of columns in the keypad
-char keys[ROWS][COLS] = {  // Array to store the keys in the keypad
-  { '1', '2', '3', 'A' },
-  { '4', '5', '6', 'B' },
-  { '7', '8', '9', 'C' },
-  { '*', '0', '#', 'D' }
+const byte KEYPAD_ROWS = 4;
+const byte KEYPAD_COLS = 4;
+byte rowPins[KEYPAD_ROWS] = {5, 4, 3, 2}; // R1 = 5, R2 = 4, R3 = 3, R4 = 2
+byte colPins[KEYPAD_COLS] = {A3, A2, A1, A0};
+char keys[KEYPAD_ROWS][KEYPAD_COLS] = {
+  {'1', '2', '3', '+'},
+  {'4', '5', '6', '-'},
+  {'7', '8', '9', '*'},
+  {'.', '0', '=', '/'}
 };
 
-byte colPins[COLS] = { 26, 27, 28, 29 };                                 // Pins connected to C1, C2, C3, C4
-byte rowPins[ROWS] = { 22, 23, 24, 25 };                                 // Pins connected to R1, R2, R3, R4
-Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);  // Keypad object
+Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, KEYPAD_ROWS, KEYPAD_COLS);
 
-// LiquidCrystal
-LiquidCrystal lcd(12, 11, 10, 9, 8, 7);  // LiquidCrystal object
+const int LED_RGB_RED = 6;
+const int LED_RGB_GREEN = 13;
+const int LED_RGB_BLUE = 1;
 
-/**
- * @brief This function clears the LCD and sets the cursor to the first position of the first row.
- * 
- */
-void borrarCaracteres() {
-  delay(300);           // Delay for 300 milliseconds
-  lcd.clear();          // Clear the LCD
-  lcd.setCursor(0, 0);  // Set the cursor to the first position of the first row
-}
+char password[6];
+const char realpass[] = "12345";
+int cont = 0;
+int contpass = 3;
+
 
 /**
- * @brief This function compares the entered password with the correct password.
- * 
- * @return true if the entered password is correct, false otherwise.
+ * @brief Configures the LCD and displays a welcome message.
  */
-bool comprobarContrasenia() {
-  return strcmp(inPassword, password) == 0;  // Compare the entered password with the correct password
-}
-
 void setup() {
-  // Keypad
-  Serial.begin(9600);  // Initialize serial communication
-
-  // LiquidCrystal
-  lcd.begin(16, 2);     // Initialize the LCD
-  lcd.print("Clave:");  // Display "Clave:" on the LCD
+  lcd.begin(16, 2);
+  pinMode(LED_RGB_RED, OUTPUT);
+  pinMode(LED_RGB_GREEN, OUTPUT);
+  pinMode(LED_RGB_BLUE, OUTPUT);
+  lcd.print("Bienvenido");
+  delay(2000);
+  lcd.clear();
+  lcd.print("Ingrese clave");
+  lcd.setCursor(5, 1);
 }
 
-void loop() {
-  // Mostrar cursor
-  if (millis() / 250 % 2 == 0 && tryCount < 3) {  // Blink the cursor if the number of attempts is less than 3
-    lcd.cursor();                                 // Show the cursor
-  } else {
-    lcd.noCursor();  // Hide the cursor
-  }
-
-  if (tryCount == 3) {
-    lcd.setCursor(0, 1);
-    lcd.print("Sis.bloqueado!!");
-  } else if (passwordLength == MAX_PASSWORD_LENGTH) {
-    passwordLength = 0;
-    bool estado = comprobarContrasenia();
-    if (estado) {
-      lcd.setCursor(0, 1);
-      lcd.print("Correcta :)");
-      delay(1000);
-      borrarCaracteres();
-      lcd.print("Clave:");
-    } else {
-      lcd.setCursor(0, 1);
-      lcd.print("Incorrecta >:(");
-      delay(1000);
-      borrarCaracteres();
-      lcd.print("Clave:");
-      tryCount++;
+/**
+ * @brief Displays a processing message with animated dots on the LCD.
+ */
+void procesando() {
+  for (int contador = 0; contador < 3; contador++) {
+    lcd.setCursor(2, 0);
+    lcd.print("Espera...");
+    for (int i = 12; i < 15; i++) {
+      lcd.setCursor(i, 0);
+      lcd.print(".");
+      delay(200);
     }
+    lcd.clear();
   }
+}
 
-  char key = keypad.getKey();  // Get the key pressed on the keypad
+/**
+ * @brief Unlocks the system after entering the correct password.
+ */
+void unlockSystem() {
+  lcd.clear();
+  procesando();
+  digitalWrite(LED_RGB_GREEN, HIGH);
+  delay(500);
+  lcd.clear();
+  lcd.setCursor(2, 1);
+  lcd.print("Es correcto!");
+  delay(1000000);
+}
 
-  if (key) {                                     // If a key is pressed
-    lcd.print("*");                              // Display "*" on the LCD
-    if (passwordLength < MAX_PASSWORD_LENGTH) {  // If the length of the entered password is less than the maximum length
-      inPassword[passwordLength] = key;          // Store the pressed key in the array
-      passwordLength++;                          // Increment the length of the entered password
+/**
+ * @brief Displays an incorrect password message and allows for more attempts or locks the system if no more attempts are available.
+ */
+void incorrectPassword() {
+  lcd.clear();
+  procesando();
+  delay(300);
+  lcd.clear();
+  contpass--;
+  if (contpass > 0) {
+    lcd.setCursor(2, 0);
+    digitalWrite(LED_RGB_BLUE, HIGH);
+    lcd.print("Incorrecto!");
+    delay(300);
+    lcd.setCursor(0, 1);
+    lcd.print("Intente de nuevo");
+    delay(2000);
+    lcd.clear();
+    digitalWrite(LED_RGB_BLUE, LOW);
+    lcd.setCursor(1, 0);
+    lcd.print("Ingrese Clave");
+    lcd.setCursor(5, 1);
+  }
+}
+
+/**
+ * @brief Locks the system when the password attempts are exhausted.
+ */
+void lockSystem() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.println("Intentos");
+  lcd.setCursor(0, 1);
+  lcd.println("Agotados.");
+  digitalWrite(LED_RGB_RED, HIGH);
+  delay(100000);
+}
+
+/**
+ * @brief Main function of the program. Reads the keypad input and performs the corresponding actions.
+ */
+void loop() {
+  char key = keypad.getKey();
+
+  if (key) {
+    password[cont] = key;
+    lcd.print("*");
+    cont++;
+
+    if (cont == 5) {
+      int resultado = strncmp(password, realpass, 5);
+      if (resultado == 0) {
+        unlockSystem();
+      } else {
+        incorrectPassword();
+      }
+      cont = 0;
+      if (contpass == 0) {
+        lockSystem();
+      }
     }
   }
 }
