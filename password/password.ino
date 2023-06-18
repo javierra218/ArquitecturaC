@@ -77,7 +77,7 @@ void unlockSystem() {
   delay(500);
   lcd.clear();
   lcd.setCursor(2, 1);
-  lcd.print("Es correcto!");
+  lcd.print("Clave Correcta");
   delay(1000000);
 }
 
