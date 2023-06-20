@@ -1,12 +1,6 @@
-/*!
-\file   password.ino
-\date   2023
-\author Javier Rojas <javierra@unicauca.edu.co>
-\brief  password.
-*****************************************************************************/
 #include <LiquidCrystal.h>
 #include <Keypad.h>
-#include "pinout.h"
+#include <DHT.h>
 
 /* Display */
 LiquidCrystal lcd(12, 11, 10, 9, 8, 7);
@@ -27,30 +21,50 @@ char keys[KEYPAD_ROWS][KEYPAD_COLS] = {
 
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, KEYPAD_ROWS, KEYPAD_COLS);
 
+const int LED_RGB_RED = 6;
+const int LED_RGB_GREEN = 13;
+const int LED_RGB_BLUE = 1;
+const int BUZZER_PIN = 4;
+const int DHT_PIN = A4;
+
 char password[6];
 const char realpass[] = "12345";
 int cont = 0;
 int contpass = 3;
 
+DHT dht(DHT_PIN, DHT22);
 
-/**
- * @brief Configures the LCD and displays a welcome message.
- */
+enum State {
+  ENTER_PASSWORD,
+  CHECK_PASSWORD,
+  UNLOCKED,
+  TEMPERATURE_MEASUREMENT,
+  TEMPERATURE_HIGH,
+};
+
+State currentState = ENTER_PASSWORD;
+
+unsigned long timeoutStart = 0;
+const unsigned long TIMEOUT_DURATION = 2000; // 2 segundos
+const float TEMPERATURE_THRESHOLD_HIGH = 32.0;
+const float TEMPERATURE_THRESHOLD_LOW = 30.0;
+unsigned long buzzerStart = 0;
+const unsigned long BUZZER_DURATION = 5000; // 5 segundos
+
 void setup() {
   lcd.begin(16, 2);
   pinMode(LED_RGB_RED, OUTPUT);
   pinMode(LED_RGB_GREEN, OUTPUT);
   pinMode(LED_RGB_BLUE, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
   lcd.print("Bienvenido");
   delay(2000);
   lcd.clear();
   lcd.print("Ingrese clave");
   lcd.setCursor(5, 1);
+  dht.begin();
 }
 
-/**
- * @brief Displays a processing message with animated dots on the LCD.
- */
 void procesando() {
   for (int contador = 0; contador < 3; contador++) {
     lcd.setCursor(2, 0);
@@ -64,9 +78,6 @@ void procesando() {
   }
 }
 
-/**
- * @brief Unlocks the system after entering the correct password.
- */
 void unlockSystem() {
   lcd.clear();
   procesando();
@@ -75,12 +86,10 @@ void unlockSystem() {
   lcd.clear();
   lcd.setCursor(2, 1);
   lcd.print("Clave Correcta");
-  delay(1000000);
+  currentState = UNLOCKED;
+  timeoutStart = millis(); // Inicia el timeout de 2 segundos
 }
 
-/**
- * @brief Displays an incorrect password message and allows for more attempts or locks the system if no more attempts are available.
- */
 void incorrectPassword() {
   lcd.clear();
   procesando();
@@ -100,12 +109,12 @@ void incorrectPassword() {
     lcd.setCursor(1, 0);
     lcd.print("Ingrese Clave");
     lcd.setCursor(5, 1);
+  } else {
+    lockSystem();
   }
+  cont = 0;
 }
 
-/**
- * @brief Locks the system when the password attempts are exhausted.
- */
 void lockSystem() {
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -113,31 +122,115 @@ void lockSystem() {
   lcd.setCursor(0, 1);
   lcd.println("Agotados.");
   digitalWrite(LED_RGB_RED, HIGH);
-  delay(100000);
+  currentState = ENTER_PASSWORD;
 }
 
-/**
- * @brief Main function of the program. Reads the keypad input and performs the corresponding actions.
- */
-void loop() {
-  char key = keypad.getKey();
+void measureTemperature() {
+  float temperature = dht.readTemperature();
+  if (isnan(temperature)) {
+    lcd.clear();
+    lcd.print("Error al leer");
+    lcd.setCursor(0, 1);
+    lcd.print("la temperatura");
+    currentState = UNLOCKED;
+    timeoutStart = millis();
+    return;
+  }
 
+  lcd.clear();
+  lcd.print("Temperatura: ");
+  lcd.print(temperature);
+  lcd.print(" C");
+
+  if (temperature > TEMPERATURE_THRESHOLD_HIGH) {
+    currentState = TEMPERATURE_HIGH;
+    buzzerStart = millis();
+  } else if (temperature < TEMPERATURE_THRESHOLD_LOW) {
+    currentState = TEMPERATURE_MEASUREMENT;
+  }
+}
+
+void buzzerAlarm() {
+  unsigned long currentTime = millis();
+  if (currentTime - buzzerStart < BUZZER_DURATION) {
+    digitalWrite(BUZZER_PIN, HIGH);
+  } else {
+    digitalWrite(BUZZER_PIN, LOW);
+    currentState = TEMPERATURE_MEASUREMENT;
+  }
+}
+
+void loop() {
+  switch (currentState) {
+    case ENTER_PASSWORD:
+      enterPasswordState();
+      break;
+    case CHECK_PASSWORD:
+      checkPasswordState();
+      break;
+    case UNLOCKED:
+      unlockedState();
+      break;
+    case TEMPERATURE_MEASUREMENT:
+      temperatureMeasurementState();
+      break;
+    case TEMPERATURE_HIGH:
+      temperatureHighState();
+      break;
+  }
+}
+
+void enterPasswordState() {
+  char key = keypad.getKey();
   if (key) {
     password[cont] = key;
     lcd.print("*");
     cont++;
 
     if (cont == 5) {
-      int resultado = strncmp(password, realpass, 5);
-      if (resultado == 0) {
-        unlockSystem();
-      } else {
-        incorrectPassword();
-      }
-      cont = 0;
-      if (contpass == 0) {
-        lockSystem();
-      }
+      currentState = CHECK_PASSWORD;
     }
+  }
+}
+
+void checkPasswordState() {
+  int resultado = strncmp(password, realpass, 5);
+  if (resultado == 0) {
+    unlockSystem();
+    currentState = UNLOCKED; // Cambio de estado después de ingresar la contraseña correcta
+  } else {
+    incorrectPassword();
+  }
+}
+
+
+void unlockedState() {
+  unsigned long currentTime = millis();
+  if (currentTime - timeoutStart >= TIMEOUT_DURATION) {
+    lcd.clear();
+    lcd.print("Ingrese clave");
+    lcd.setCursor(5, 1);
+    currentState = ENTER_PASSWORD;
+    contpass = 3;
+  } else {
+    currentState = TEMPERATURE_MEASUREMENT;
+  }
+}
+
+void temperatureMeasurementState() {
+  measureTemperature();
+  unsigned long currentTime = millis();
+  if (currentTime - timeoutStart >= TIMEOUT_DURATION) {
+    currentState = UNLOCKED;
+    timeoutStart = millis();
+  }
+}
+
+void temperatureHighState() {
+  buzzerAlarm();
+  unsigned long currentTime = millis();
+  if (currentTime - timeoutStart >= TIMEOUT_DURATION) {
+    currentState = UNLOCKED;
+    timeoutStart = millis();
   }
 }
