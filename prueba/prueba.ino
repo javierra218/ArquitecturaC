@@ -26,6 +26,7 @@ const int LED_RGB_GREEN = 13;
 const int LED_RGB_BLUE = 1;
 const int BUZZER_PIN = 4;
 const int DHT_PIN = A4;
+const int PHOTO_RESISTOR_PIN = A5;
 
 char password[6];
 const char realpass[] = "12345";
@@ -40,6 +41,7 @@ enum State {
   UNLOCKED,
   TEMPERATURE_MEASUREMENT,
   TEMPERATURE_HIGH,
+  PHOTO_RESISTOR_MEASUREMENT,
 };
 
 State currentState = ENTER_PASSWORD;
@@ -48,15 +50,13 @@ unsigned long timeoutStart = 0;
 const unsigned long TIMEOUT_DURATION = 2000; // 2 segundos
 const float TEMPERATURE_THRESHOLD_HIGH = 32.0;
 const float TEMPERATURE_THRESHOLD_LOW = 30.0;
-unsigned long buzzerStart = 0;
-const unsigned long BUZZER_DURATION = 5000; // 5 segundos
+
 
 void setup() {
   lcd.begin(16, 2);
   pinMode(LED_RGB_RED, OUTPUT);
   pinMode(LED_RGB_GREEN, OUTPUT);
   pinMode(LED_RGB_BLUE, OUTPUT);
-  pinMode(BUZZER_PIN, OUTPUT);
   lcd.print("Bienvenido");
   delay(2000);
   lcd.clear();
@@ -116,8 +116,6 @@ void incorrectPassword() {
   }
 }
 
-
-
 void lockSystem() {
   contpass = 3; // Restablecer el valor de contpass a 3
   lcd.clear();
@@ -128,7 +126,6 @@ void lockSystem() {
   digitalWrite(LED_RGB_RED, HIGH);
   currentState = ENTER_PASSWORD;
 }
-
 
 void measureTemperature() {
   float temperature = dht.readTemperature();
@@ -149,19 +146,87 @@ void measureTemperature() {
 
   if (temperature > TEMPERATURE_THRESHOLD_HIGH) {
     currentState = TEMPERATURE_HIGH;
-    buzzerStart = millis();
   } else if (temperature < TEMPERATURE_THRESHOLD_LOW) {
     currentState = TEMPERATURE_MEASUREMENT;
   }
 }
 
-void buzzerAlarm() {
+void measurePhotoResistor() {
+  int photoResistorValue = analogRead(PHOTO_RESISTOR_PIN);
+  // Realiza el procesamiento necesario con el valor del fotoresistor
+}
+
+void displayTemperature() {
+  float temperature = dht.readTemperature();
+  lcd.setCursor(0, 1);
+  lcd.print("Temperatura: ");
+  lcd.print(temperature);
+  lcd.print(" C");
+}
+
+void displayPhotoResistorValue() {
+  int photoResistorValue = analogRead(PHOTO_RESISTOR_PIN);
+  lcd.setCursor(0, 0);
+  lcd.print("Fotoresistor: ");
+  lcd.print(photoResistorValue);
+}
+
+void enterPasswordState() {
+  char key = keypad.getKey();
+  if (key) {
+    if (cont < 5) {
+      password[cont] = key;
+      lcd.print("*");
+      cont++;
+    }
+
+    if (cont == 5) {
+      currentState = CHECK_PASSWORD;
+    }
+  }
+}
+
+void checkPasswordState() {
+  if (cont == 5) {
+    if (strcmp(password, realpass) == 0) {
+      unlockSystem();
+      currentState = UNLOCKED; // Cambio de estado después de ingresar la contraseña correcta
+    } else {
+      incorrectPassword();
+    }
+  }
+}
+
+void unlockedState() {
   unsigned long currentTime = millis();
-  if (currentTime - buzzerStart < BUZZER_DURATION) {
-    digitalWrite(BUZZER_PIN, HIGH);
+  if (currentTime - timeoutStart >= TIMEOUT_DURATION) {
+    lcd.clear();
+    lcd.print("Ingrese clave");
+    lcd.setCursor(5, 1);
+    currentState = ENTER_PASSWORD;
+    contpass = 3;
   } else {
-    digitalWrite(BUZZER_PIN, LOW);
-    currentState = TEMPERATURE_MEASUREMENT;
+    measureTemperature();
+    measurePhotoResistor();
+    displayTemperature();
+    displayPhotoResistorValue();
+  }
+}
+
+void temperatureMeasurementState() {
+  measureTemperature();
+  unsigned long currentTime = millis();
+  if (currentTime - timeoutStart >= TIMEOUT_DURATION) {
+    currentState = UNLOCKED;
+    timeoutStart = millis();
+  }
+}
+
+void temperatureHighState() {
+  unsigned long currentTime = millis();
+  if (currentTime - timeoutStart >= TIMEOUT_DURATION) {
+    currentState = UNLOCKED;
+    timeoutStart = millis();
   }
 }
 
@@ -182,65 +247,5 @@ void loop() {
     case TEMPERATURE_HIGH:
       temperatureHighState();
       break;
-  }
-}
-
-void enterPasswordState() {
-  char key = keypad.getKey();
-  if (key) {
-    if (cont < 5) {
-      password[cont] = key;
-      lcd.print("*");
-      cont++;
-    }
-
-    if (cont == 5) {
-      currentState = CHECK_PASSWORD;
-    }
-  }
-}
-
-
-void checkPasswordState() {
-  if (cont == 5) {
-    if (strcmp(password, realpass) == 0) {
-      unlockSystem();
-      currentState = UNLOCKED; // Cambio de estado después de ingresar la contraseña correcta
-    } else {
-      incorrectPassword();
-    }
-  }
-}
-
-
-
-void unlockedState() {
-  unsigned long currentTime = millis();
-  if (currentTime - timeoutStart >= TIMEOUT_DURATION) {
-    lcd.clear();
-    lcd.print("Ingrese clave");
-    lcd.setCursor(5, 1);
-    currentState = ENTER_PASSWORD;
-    contpass = 3;
-  } else {
-    currentState = TEMPERATURE_MEASUREMENT;
-  }
-}
-
-void temperatureMeasurementState() {
-  measureTemperature();
-  unsigned long currentTime = millis();
-  if (currentTime - timeoutStart >= TIMEOUT_DURATION) {
-    currentState = UNLOCKED;
-    timeoutStart = millis();
-  }
-}
-
-void temperatureHighState() {
-  buzzerAlarm();
-  unsigned long currentTime = millis();
-  if (currentTime - timeoutStart >= TIMEOUT_DURATION) {
-    currentState = UNLOCKED;
-    timeoutStart = millis();
   }
 }
