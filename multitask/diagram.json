@@ -1,88 +1,52 @@
 {
-    "version": 1,
-    "author": "Uri Shaked",
-    "editor": "wokwi",
-    "parts": [
-      { "type": "wokwi-arduino-uno", "id": "uno", "top": 281.07, "left": 33.34, "attrs": {} },
-      {
-        "type": "wokwi-membrane-keypad",
-        "id": "keypad",
-        "top": 100,
-        "left": 360,
-        "attrs": {
-          "keys": [ "1", "2", "3", "+", "4", "5", "6", "-", "7", "8", "9", "*", ".", "0", "=", "/" ]
-        }
-      },
-      { "type": "wokwi-lcd1602", "id": "lcd", "top": 8, "left": 20, "attrs": {} },
-      { "type": "wokwi-resistor", "id": "r1", "top": 140, "left": 220, "attrs": { "value": "220" } },
-      {
-        "type": "wokwi-led",
-        "id": "led1",
-        "top": 248.74,
-        "left": -156.56,
-        "attrs": { "color": "red" }
-      },
-      {
-        "type": "wokwi-led",
-        "id": "led2",
-        "top": 249.65,
-        "left": -124.15,
-        "attrs": { "color": "yellow" }
-      },
-      {
-        "type": "wokwi-led",
-        "id": "led3",
-        "top": 250.52,
-        "left": -88.62,
-        "attrs": { "color": "green" }
-      },
-      {
-        "type": "wokwi-dht22",
-        "id": "dht1",
-        "top": -78.18,
-        "left": -113.56,
-        "attrs": { "temperature": "35.7", "humidity": "32" }
-      },
-      {
-        "type": "wokwi-buzzer",
-        "id": "bz1",
-        "top": -31.75,
-        "left": -310.7,
-        "attrs": { "volume": "0.1" }
-      }
-    ],
-    "connections": [
-      [ "uno:GND.1", "lcd:VSS", "black", [ "v-51", "*", "h0", "v18" ] ],
-      [ "uno:GND.1", "lcd:K", "black", [ "v-51", "*", "h0", "v18" ] ],
-      [ "uno:GND.1", "lcd:RW", "black", [ "v-51", "*", "h0", "v18" ] ],
-      [ "uno:5V", "lcd:VDD", "red", [ "v16", "h-16" ] ],
-      [ "uno:5V", "r1:2", "red", [ "v16", "h-118", "v-244", "h50" ] ],
-      [ "r1:1", "lcd:A", "pink", [] ],
-      [ "uno:12", "lcd:RS", "blue", [ "v-16", "*", "h0", "v20" ] ],
-      [ "uno:11", "lcd:E", "purple", [ "v-20", "*", "h0", "v20" ] ],
-      [ "uno:10", "lcd:D4", "green", [ "v-24", "*", "h0", "v20" ] ],
-      [ "uno:9", "lcd:D5", "brown", [ "v-28", "*", "h0", "v20" ] ],
-      [ "uno:8", "lcd:D6", "gold", [ "v-32", "*", "h0", "v20" ] ],
-      [ "uno:7", "lcd:D7", "gray", [ "v-36", "*", "h0", "v20" ] ],
-      [ "uno:A3", "keypad:C1", "brown", [ "v76", "*", "h0", "v0" ] ],
-      [ "uno:A2", "keypad:C2", "gray", [ "v80", "*", "h0", "v0" ] ],
-      [ "uno:A1", "keypad:C3", "orange", [ "v84", "*", "h0", "v0" ] ],
-      [ "uno:A0", "keypad:C4", "pink", [ "v88", "*", "h0", "v0" ] ],
-      [ "uno:5", "keypad:R1", "blue", [ "v-34", "h96", "*", "v12" ] ],
-      [ "uno:4", "keypad:R2", "green", [ "v-30", "h80", "*", "v16" ] ],
-      [ "uno:3", "keypad:R3", "purple", [ "v-26", "h64", "*", "v20" ] ],
-      [ "uno:2", "keypad:R4", "gold", [ "v-22", "h48", "*", "v24" ] ],
-      [ "led1:C", "uno:GND.2", "black", [ "v0" ] ],
-      [ "led2:C", "uno:GND.2", "black", [ "v92.83", "h298.65" ] ],
-      [ "led1:A", "uno:6", "red", [ "v52.29", "h136.39" ] ],
-      [ "led2:A", "uno:1", "gold", [ "v18.8", "h297.82" ] ],
-      [ "led3:A", "uno:13", "green", [ "v2.71", "h215.42" ] ],
-      [ "led3:C", "uno:GND.2", "black", [ "v74.15", "h72.04" ] ],
-      [ "uno:5V", "dht1:VCC", "red", [ "h-348.47", "v-336.11" ] ],
-      [ "dht1:GND", "uno:GND.3", "black", [ "v0" ] ],
-      [ "dht1:SDA", "uno:A4", "green", [ "v0" ] ],
-      [ "bz1:1", "uno:GND.3", "green", [ "v0" ] ],
-      [ "uno:4", "bz1:2", "green", [ "v-23.14", "h-465.25" ] ]
-    ],
-    "dependencies": {}
-  }
+  "version": 1,
+  "author": "Uri Shaked",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-mega", "id": "uno", "top": 251.84, "left": 387.91, "attrs": {} },
+    { "type": "wokwi-lcd1602", "id": "lcd", "top": -26.61, "left": 268.92, "attrs": {} },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": 140.59,
+      "left": 362.48,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-dht22",
+      "id": "dht1",
+      "top": 341.26,
+      "left": 827.64,
+      "attrs": { "humidity": "45", "temperature": "23.3" }
+    },
+    {
+      "type": "wokwi-photoresistor-sensor",
+      "id": "ldr1",
+      "top": 338.25,
+      "left": 866.52,
+      "rotate": 90,
+      "attrs": {}
+    }
+  ],
+  "connections": [
+    [ "uno:GND.1", "lcd:VSS", "black", [ "v-51", "*", "h0", "v18" ] ],
+    [ "uno:GND.1", "lcd:K", "black", [ "v-51", "*", "h0", "v18" ] ],
+    [ "uno:GND.1", "lcd:RW", "black", [ "v-51", "*", "h0", "v18" ] ],
+    [ "uno:5V", "lcd:VDD", "red", [ "v20.54", "h-241.99" ] ],
+    [ "uno:5V", "r1:2", "red", [ "v19.48", "h-117.78", "v-263.87", "h0.01", "v-45.71" ] ],
+    [ "r1:1", "lcd:A", "pink", [ "v0.36", "h-10.25", "v-20.05", "h83.33", "v-7.82", "h-0.14" ] ],
+    [ "lcd:D7", "uno:7", "green", [ "v31.07", "h138.31" ] ],
+    [ "lcd:D6", "uno:8", "green", [ "v66.04", "h7.48" ] ],
+    [ "lcd:D5", "uno:9", "green", [ "v75.34", "h4.15" ] ],
+    [ "lcd:D4", "uno:10", "green", [ "v84.19", "h12.32" ] ],
+    [ "lcd:E", "uno:11", "green", [ "v123.15", "h179.39" ] ],
+    [ "lcd:RS", "uno:12", "green", [ "v139.08", "h190.93" ] ],
+    [ "dht1:VCC", "uno:5V", "red", [ "v20.71", "h-288.39" ] ],
+    [ "dht1:GND", "uno:GND.3", "black", [ "v46.97", "h-308.76" ] ],
+    [ "dht1:SDA", "uno:A1", "green", [ "v34.68", "h-264.5" ] ],
+    [ "ldr1:AO", "uno:A0", "green", [ "v101.21", "h-354.91" ] ],
+    [ "ldr1:VCC", "uno:5V", "red", [ "v76.53", "h-429.5" ] ],
+    [ "ldr1:GND", "uno:GND.3", "black", [ "v62.57", "h-387.83" ] ]
+  ],
+  "dependencies": {}
+}

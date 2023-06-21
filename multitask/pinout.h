@@ -1,3 +1,2 @@
-const int LED_RGB_RED = 6;
-const int LED_RGB_GREEN = 13;
-const int LED_RGB_BLUE = 1;
+#define DHT11_PIN A1
+#define PHOTOCELL_PIN A0
