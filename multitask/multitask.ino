@@ -1,6 +1,7 @@
 /**
- * @file main.cpp
- * @brief Example code for Arduino using Doxygen.
+ * @file multitask.ino 
+ * @author  Javier Rojas <javierra@unicauca.edu.co
+ * @brief Multitask.
  */
 
 #include "AsyncTaskLib.h"
