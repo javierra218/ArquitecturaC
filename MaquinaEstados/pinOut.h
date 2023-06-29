@@ -5,6 +5,7 @@ byte colPins[KEYPAD_COLS] = {A3, A2, A1, A0};
 
 #define DHT11_PIN A15
 const int buzzerPin = A14;
+int photocellPin = A10; // Pin utilizado para el sensor de luz
 
 const int redPin = 15;
 const int greenPin = 16;

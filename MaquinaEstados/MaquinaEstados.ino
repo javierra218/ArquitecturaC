@@ -1,3 +1,17 @@
+/**
+ * @file MaquinaEstados.ino
+ * @brief Descripción breve del archivo
+ *
+ * Descripción más detallada del archivo, incluyendo su propósito y cualquier información relevante.
+ *
+ * @author Javier Rojas Agredo, Diana Carolina Bravo, Daniel Alejandro Garcia.
+ * @date 29/06/2023
+ *
+ *
+ * @par Información de contacto:
+ *
+ * Correo electrónico: javierra@unicauca.edu.co
+ */
 #include "StateMachineLib.h"
 #include "DHTStable.h"
 #include "AsyncTaskLib.h"
@@ -10,18 +24,18 @@ void timeout2();
 void timeout3();
 void timeout4();
 void medirTemp();
+void readLight();
 void leerPass();
 
-void intHallSensor();
-void intTrackingSensor();
-void intMetalTouchSensor();
+void sensorHall();
+void sensorTracking();
+void sensorMetal();
 
 #define DEBUG(a)          \
   Serial.print(millis()); \
   Serial.print(": ");     \
   Serial.println(a);
 
-// Def liquid and dht
 LiquidCrystal lcd(12, 11, 10, 9, 8, 7);
 DHTStable DHT;
 
@@ -33,7 +47,6 @@ AsyncTask asyncTaskTime_4(5000, timeout4);
 AsyncTask asyncTaskTemp(500, true, medirTemp);
 #pragma endregion TareasAsinc
 
-// Keypad setup
 char keys[KEYPAD_ROWS][KEYPAD_COLS] = {
     {'1', '2', '3', '+'},
     {'4', '5', '6', '-'},
@@ -42,17 +55,22 @@ char keys[KEYPAD_ROWS][KEYPAD_COLS] = {
 
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, KEYPAD_ROWS, KEYPAD_COLS);
 
+int fre; /**< Variable para almacenar el valor de frecuencia */
+int execute = 0; /**< Variable para indicar si se debe ejecutar una tarea */
 
-int fre; // set the variable to store the frequence value
-int execute = 0;
+unsigned long lastReadLightTime = 0; /**< Tiempo de la última lectura del sensor de luz */
+const unsigned long readLightInterval = 1000; /**< Intervalo de tiempo para leer el sensor de luz */
 
-float tempOnState = 0;
-char inputPassword[5];
-char password[5] = "12345";
-unsigned char idx = 0;
-int failCount = 0;
-bool flag = false;
-bool buzzer = false;
+float tempOnState = 0; /**< Temperatura actual en el estado actual de la máquina de estados */
+char inputPassword[5]; /**< Contraseña ingresada por el usuario */
+char password[5] = "12345"; /**< Contraseña predeterminada */
+unsigned char i = 0; /**< Índice para la contraseña ingresada */
+int failCount = 0; /**< Contador de intentos fallidos de ingreso */
+bool bandera = false; /**< Bandera para indicar si se debe ingresar la contraseña */
+bool buzzer = false; /**< Bandera para indicar si debe sonar el zumbador */
+int outputValue = 0; /**< Valor de salida actual */
+
+
 
 #pragma region enums
 enum State
@@ -76,43 +94,72 @@ enum Input
 
 #pragma endregion enums
 
-// Create new StateMachine
 StateMachine stateMachine(5, 8);
 
-// Stores last user input
 Input input;
-//====================================================
-// Entrys
-//====================================================
-void entryIngreso()
-{
 
-  idx = 0;
-  flag = false;
+/**
+ * @brief Función para ingresar la clave
+ *
+ * Esta función se llama cuando se ingresa al estado de ingreso de clave en una máquina de estados.
+ *
+ * @param void
+ * @return void
+ */
+void ingresar()
+{
+  i = 0;
+  bandera = false;
 
   lcd.clear();
-
-  lcd.print("Ingrese la clave:");
+  lcd.print("Clave:");
   lcd.setCursor(0, 1);
+  lcd.print(">");
+  lcd.setCursor(0, 2);
 }
-void entryEvents()
+
+/**
+ * @brief Función para manejar eventos
+ *
+ * Esta función se llama cuando se ingresa al estado de eventos en una máquina de estados.
+ *
+ * @param void
+ * @return void
+ */
+void eventos()
 {
   buzzer = false;
   lcd.clear();
   asyncTaskTime_1.Start(); // timeout 2 sec
   asyncTaskTemp.Stop();    // Detener escaneo de temperatura
-  lcd.print("En eventos");
+  // lcd.print("En eventos");
 }
-void entryMonitor()
-{
 
+/**
+ * @brief Función para monitorear el entorno
+ *
+ * Esta función se llama cuando se ingresa al estado de monitoreo en una máquina de estados.
+ *
+ * @param void
+ * @return void
+ */
+void monitoreo()
+{
   lcd.clear();
   asyncTaskTime_2.Start(); // timeout 10 sec
   asyncTaskTemp.Start();   // Revisar temperatura
   tempOnState = 25.3;
-  lcd.print("En monitor");
 }
-void entryAlertSecurity()
+
+/**
+ * @brief Función para activar la alerta de seguridad
+ *
+ * Esta función se llama cuando se activa la alerta de seguridad en una máquina de estados.
+ *
+ * @param void
+ * @return void
+ */
+void alertaSeguridad()
 {
   execute = 0;
   lcd.clear();
@@ -125,7 +172,16 @@ void entryAlertSecurity()
   lcd.print("Alerta seguridad");
   buzzer = true;
 }
-void entryAlarmEnvironment()
+
+/**
+ * @brief Función para activar la alarma de los sensores
+ *
+ * Esta función se llama cuando se activa la alarma de los sensores en una máquina de estados.
+ *
+ * @param void
+ * @return void
+ */
+void alarmaSensores()
 {
   asyncTaskTime_2.Stop();
   lcd.clear();
@@ -135,13 +191,16 @@ void entryAlarmEnvironment()
   lcd.print("Alarma ambiente");
 }
 
-//====================================================
-//====================================================
-// Setup the State Machine
-//====================================================
+/**
+ * @brief Función para configurar la máquina de estados
+ *
+ * Esta función configura la máquina de estados y establece las transiciones y las funciones de entrada para cada estado.
+ *
+ * @param void
+ * @return void
+ */
 void setupStateMachine()
 {
-  // Add transitions
   stateMachine.AddTransition(STATE_SEGURIDAD, STATE_PUERTA_VENTANA, []()
                              { return input == passwordCorrect; });
 
@@ -164,15 +223,13 @@ void setupStateMachine()
   stateMachine.AddTransition(STATE_ALERTA_SEGURIDAD, STATE_PUERTA_VENTANA, []()
                              { return input == timeOut; });
 
-  // Add actions
-  stateMachine.SetOnEntering(STATE_SEGURIDAD, entryIngreso);
-  stateMachine.SetOnEntering(STATE_PUERTA_VENTANA, entryEvents);
-  stateMachine.SetOnEntering(STATE_MONITOR, entryMonitor);
-  stateMachine.SetOnEntering(STATE_ALARMA, entryAlarmEnvironment);
-  stateMachine.SetOnEntering(STATE_ALERTA_SEGURIDAD, entryAlertSecurity);
+  stateMachine.SetOnEntering(STATE_SEGURIDAD, ingresar);
+  stateMachine.SetOnEntering(STATE_PUERTA_VENTANA, eventos);
+  stateMachine.SetOnEntering(STATE_MONITOR, monitoreo);
+  stateMachine.SetOnEntering(STATE_ALARMA, alarmaSensores);
+  stateMachine.SetOnEntering(STATE_ALERTA_SEGURIDAD, alertaSeguridad);
 }
 
-//====================================================
 void setup()
 {
   lcd.begin(16, 2);
@@ -190,9 +247,9 @@ void setup()
   delay(800);
   lcd.clear();
 
-  attachInterrupt(digitalPinToInterrupt(intPinHall), intHallSensor, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(intPinTracking), intTrackingSensor, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(intPinMetal), intMetalTouchSensor, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(intPinHall), sensorHall, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(intPinTracking), sensorTracking, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(intPinMetal), sensorMetal, CHANGE);
 
   Serial.begin(115200);
 
@@ -204,18 +261,13 @@ void setup()
   delay(500);
   lcd.clear();
 
-  // Initial state
   stateMachine.SetState(STATE_SEGURIDAD, false, true);
 }
-//====================================================
 
-//====================================================
 void loop()
 {
-  // Read user input
-  input = static_cast<Input>(readInput());
+  input = static_cast<Input>(leerEntrada());
 
-  // Update async tasks
   asyncTaskTime_1.Update();
   asyncTaskTime_2.Update();
   asyncTaskTime_3.Update();
@@ -229,25 +281,28 @@ void loop()
   {
     noTone(buzzerPin);
   }
-  // Update State Machine
   stateMachine.Update();
 }
-//====================================================
 
-//====================================================
-// Auxiliar function that reads the user input
-//====================================================
-int readInput()
+/**
+ * @brief Función para leer la entrada del teclado
+ *
+ * Esta función lee la entrada del teclado y verifica si se ha ingresado la clave correcta.
+ *
+ * @param void
+ * @return int - El valor de la entrada actual, representado como un entero.
+ */
+int leerEntrada()
 {
   Input currentInput = Input::Unknown;
   char key = keypad.getKey();
 
   if (key)
   {
-    inputPassword[idx++] = key;
+    inputPassword[i++] = key;
     lcd.print("*");
 
-    if (idx == 5)
+    if (i == 5)
     {
       bool correctPassword = true;
 
@@ -285,8 +340,8 @@ int readInput()
         }
         else
         {
-          entryIngreso();
-          flag = false;
+          ingresar();
+          bandera = false;
         }
       }
     }
@@ -295,19 +350,12 @@ int readInput()
   return static_cast<int>(currentInput);
 }
 
-//====================================================
-// buzz
-//====================================================
-
 void buzz()
 {
   tone(buzzerPin, 800);
 }
-//====================================================
-// Interrupciones
-//====================================================
 
-void intHallSensor()
+void sensorHall()
 {
   if (stateMachine.GetState() == STATE_PUERTA_VENTANA)
   {
@@ -315,7 +363,7 @@ void intHallSensor()
   }
 }
 
-void intTrackingSensor()
+void sensorTracking()
 {
   if (stateMachine.GetState() == STATE_PUERTA_VENTANA)
   {
@@ -323,7 +371,7 @@ void intTrackingSensor()
   }
 }
 
-void intMetalTouchSensor()
+void sensorMetal()
 {
   if (stateMachine.GetState() == STATE_PUERTA_VENTANA)
   {
@@ -331,9 +379,6 @@ void intMetalTouchSensor()
   }
 }
 
-//====================================================
-// timeouts
-//====================================================
 void timeout1()
 {
 
@@ -354,16 +399,21 @@ void timeout4()
 
   input = Input::tempAndTime;
 }
-//====================================================
-// medirTemp
-//====================================================
+
+/**
+ * @brief Función para medir la temperatura y actualizar el estado de la máquina de estados
+ *
+ * Esta función mide la temperatura y actualiza el estado de la máquina de estados según la temperatura medida. Si la temperatura es mayor o igual a 25 grados Celsius y el estado actual es STATE_MONITOR, se establece la entrada como "tempVeriffy". Si la temperatura es mayor o igual a 25 grados Celsius y el estado actual es STATE_ALARMA, se inicia una tarea asíncrona y se detiene la tarea asíncrona actual. Si la temperatura es menor que 25 grados Celsius y el estado actual es STATE_ALARMA, se establece la entrada como "tempVeriffy". También se lee la luz cada cierto intervalo de tiempo.
+ *
+ * @param void
+ * @return void
+ */
 void medirTemp()
 {
   input = Input::Unknown;
 
   int chk = DHT.read22(DHT11_PIN);
 
-  // DISPLAY DATA
   float value_Temp = DHT.getTemperature();
   lcd.setCursor(0, 1);
   lcd.print("Temp: ");
@@ -389,4 +439,33 @@ void medirTemp()
   {
     input = Input::tempVeriffy;
   }
+
+  unsigned long currentTime = millis();
+  if (currentTime - lastReadLightTime >= readLightInterval)
+  {
+    delay(3000);
+    readLight();
+    lastReadLightTime = currentTime;
+  }
+}
+
+/**
+ * @brief Función para leer el valor del sensor de luz y mostrarlo en la pantalla LCD
+ *
+ * Esta función lee el valor del sensor de luz y lo muestra en la pantalla LCD.
+ *
+ * @param void
+ * @return void
+ */
+void readLight()
+{
+
+  int sensorValue = analogRead(photocellPin); // Leer el valor del sensor de luz
+
+  // Mostrar el valor del sensor de luz en la pantalla LCD
+  lcd.setCursor(0, 2);
+  lcd.print("Luz: ");
+  lcd.print(sensorValue);
+  delay(2000);
+  lcd.clear();
 }
