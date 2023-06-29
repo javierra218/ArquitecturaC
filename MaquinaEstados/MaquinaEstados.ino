@@ -24,7 +24,7 @@ void timeout2();
 void timeout3();
 void timeout4();
 void medirTemp();
-void readLight();
+void medirLuz();
 void leerPass();
 
 void sensorHall();
@@ -47,6 +47,7 @@ AsyncTask asyncTaskTime_4(5000, timeout4);
 AsyncTask asyncTaskTemp(500, true, medirTemp);
 #pragma endregion TareasAsinc
 
+#pragma region keypad
 char keys[KEYPAD_ROWS][KEYPAD_COLS] = {
     {'1', '2', '3', '+'},
     {'4', '5', '6', '-'},
@@ -54,42 +55,52 @@ char keys[KEYPAD_ROWS][KEYPAD_COLS] = {
     {'.', '0', '=', '/'}};
 
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, KEYPAD_ROWS, KEYPAD_COLS);
+#pragma endregion keypad
 
-int fre; /**< Variable para almacenar el valor de frecuencia */
+#pragma region Variables
 int execute = 0; /**< Variable para indicar si se debe ejecutar una tarea */
 
-unsigned long lastReadLightTime = 0; /**< Tiempo de la última lectura del sensor de luz */
+unsigned long lastReadLightTime = 0;          /**< Tiempo de la última lectura del sensor de luz */
 const unsigned long readLightInterval = 1000; /**< Intervalo de tiempo para leer el sensor de luz */
 
-float tempOnState = 0; /**< Temperatura actual en el estado actual de la máquina de estados */
-char inputPassword[5]; /**< Contraseña ingresada por el usuario */
+float tempOnState = 0;      /**< Temperatura actual en el estado actual de la máquina de estados */
+char inputPassword[5];      /**< Contraseña ingresada por el usuario */
 char password[5] = "12345"; /**< Contraseña predeterminada */
-unsigned char i = 0; /**< Índice para la contraseña ingresada */
-int failCount = 0; /**< Contador de intentos fallidos de ingreso */
-bool bandera = false; /**< Bandera para indicar si se debe ingresar la contraseña */
-bool buzzer = false; /**< Bandera para indicar si debe sonar el zumbador */
-int outputValue = 0; /**< Valor de salida actual */
-
-
+unsigned char i = 0;        /**< Índice para la contraseña ingresada */
+int failCount = 0;          /**< Contador de intentos fallidos de ingreso */
+bool bandera = false;       /**< Bandera para indicar si se debe ingresar la contraseña */
+bool buzzer = false;        /**< Bandera para indicar si debe sonar el zumbador */
+int outputValue = 0;        /**< Valor de salida actual */
+#pragma endregion Variables
 
 #pragma region enums
+/**
+ * @brief Enumerado para los estados de la máquina de estados
+ *
+ * Este enumerado define los diferentes estados de la máquina de estados. Cada estado representa una etapa en el proceso de seguridad.
+ */
 enum State
 {
-  STATE_SEGURIDAD = 0,
-  STATE_MONITOR = 1,
-  STATE_PUERTA_VENTANA = 2,
-  STATE_ALERTA_SEGURIDAD = 3,
-  STATE_ALARMA = 4
+  STATE_SEGURIDAD = 0,        /**< Estado de seguridad */
+  STATE_MONITOR = 1,          /**< Estado de monitoreo */
+  STATE_PUERTA_VENTANA = 2,   /**< Estado de puerta o ventana abierta */
+  STATE_ALERTA_SEGURIDAD = 3, /**< Estado de alerta de seguridad */
+  STATE_ALARMA = 4            /**< Estado de alarma */
 };
 
+/**
+ * @brief Enumerado para las entradas de la máquina de estados
+ *
+ * Este enumerado define las diferentes entradas de la máquina de estados. Cada entrada representa una acción que puede ocurrir en el sistema.
+ */
 enum Input
 {
-  passwordCorrect = 0,
-  timeOut = 1,
-  gateOpen = 2,
-  tempVeriffy = 3,
-  tempAndTime = 4,
-  Unknown = 5,
+  claveCorrecta = 0, /**< Clave correcta ingresada */
+  timeOut = 1,       /**< Tiempo de espera agotado */
+  gateOpen = 2,      /**< Puerta o ventana abierta */
+  verificarTemp = 3, /**< Verificar temperatura */
+  tiempoTemp = 4,    /**< Tiempo de espera para verificar temperatura */
+  Unknown = 5        /**< Entrada desconocida */
 };
 
 #pragma endregion enums
@@ -130,8 +141,8 @@ void eventos()
 {
   buzzer = false;
   lcd.clear();
-  asyncTaskTime_1.Start(); // timeout 2 sec
-  asyncTaskTemp.Stop();    // Detener escaneo de temperatura
+  asyncTaskTime_1.Start();
+  asyncTaskTemp.Stop();
   // lcd.print("En eventos");
 }
 
@@ -146,8 +157,8 @@ void eventos()
 void monitoreo()
 {
   lcd.clear();
-  asyncTaskTime_2.Start(); // timeout 10 sec
-  asyncTaskTemp.Start();   // Revisar temperatura
+  asyncTaskTime_2.Start();
+  asyncTaskTemp.Start();
   tempOnState = 25.3;
 }
 
@@ -163,7 +174,7 @@ void alertaSeguridad()
 {
   execute = 0;
   lcd.clear();
-  asyncTaskTime_1.Stop(); // que deje de contar 2 segundos
+  asyncTaskTime_1.Stop();
   asyncTaskTime_2.Stop();
   asyncTaskTime_4.Stop();
   asyncTaskTemp.Stop();
@@ -186,7 +197,7 @@ void alarmaSensores()
   asyncTaskTime_2.Stop();
   lcd.clear();
 
-  input = (DHT.getTemperature() < 25.5) ? Input::tempVeriffy : input;
+  input = (DHT.getTemperature() < 25.5) ? Input::verificarTemp : input;
 
   lcd.print("Alarma ambiente");
 }
@@ -202,7 +213,7 @@ void alarmaSensores()
 void setupStateMachine()
 {
   stateMachine.AddTransition(STATE_SEGURIDAD, STATE_PUERTA_VENTANA, []()
-                             { return input == passwordCorrect; });
+                             { return input == claveCorrecta; });
 
   stateMachine.AddTransition(STATE_PUERTA_VENTANA, STATE_MONITOR, []()
                              { return input == timeOut; });
@@ -212,13 +223,13 @@ void setupStateMachine()
                              { return input == timeOut; });
 
   stateMachine.AddTransition(STATE_MONITOR, STATE_ALARMA, []()
-                             { return input == tempVeriffy; });
+                             { return input == verificarTemp; });
   stateMachine.AddTransition(STATE_MONITOR, STATE_PUERTA_VENTANA, []()
                              { return input == timeOut; });
   stateMachine.AddTransition(STATE_ALARMA, STATE_MONITOR, []()
-                             { return input == tempVeriffy; });
+                             { return input == verificarTemp; });
   stateMachine.AddTransition(STATE_ALARMA, STATE_ALERTA_SEGURIDAD, []()
-                             { return input == tempAndTime; });
+                             { return input == tiempoTemp; });
 
   stateMachine.AddTransition(STATE_ALERTA_SEGURIDAD, STATE_PUERTA_VENTANA, []()
                              { return input == timeOut; });
@@ -232,6 +243,11 @@ void setupStateMachine()
 
 void setup()
 {
+  /**
+   * @brief Configuración inicial del programa
+   *
+   * Esta sección de código se encarga de realizar la configuración inicial del programa. Se inicializan los pines de entrada y salida, se configura la pantalla LCD y se establecen las interrupciones para los sensores.
+   */
   lcd.begin(16, 2);
   lcd.clear();
 
@@ -253,6 +269,11 @@ void setup()
 
   Serial.begin(115200);
 
+  /**
+   * @brief Configuración de la máquina de estados
+   *
+   * Esta sección de código se encarga de configurar la máquina de estados. Se llama a la función setupStateMachine() para inicializar la máquina de estados.
+   */
   setupStateMachine();
 
   delay(1000);
@@ -261,6 +282,11 @@ void setup()
   delay(500);
   lcd.clear();
 
+  /**
+   * @brief Establecimiento del estado inicial de la máquina de estados
+   *
+   * Esta sección de código se encarga de establecer el estado inicial de la máquina de estados. Se llama a la función SetState() para establecer el estado de seguridad como el estado inicial.
+   */
   stateMachine.SetState(STATE_SEGURIDAD, false, true);
 }
 
@@ -320,9 +346,13 @@ int leerEntrada()
       if (correctPassword)
       {
         lcd.print("Clave correcta.");
-
         delay(1000);
-        currentInput = Input::passwordCorrect;
+        currentInput = Input::claveCorrecta;
+        // encender led verde
+        digitalWrite(greenPin, HIGH);
+        delay(2000);
+        // Apagar led verde
+        digitalWrite(greenPin, LOW);
       }
       else
       {
@@ -331,12 +361,17 @@ int leerEntrada()
         delay(1000);
         failCount++;
 
+        digitalWrite(redPin, HIGH); // Encender LED rojo
+        delay(1000);
+
+        digitalWrite(redPin, LOW); // Apagar LED rojo
+
         if (failCount >= 3)
         {
           lcd.clear();
           lcd.print("Sistema bloqueado.");
-
           delay(1000);
+          digitalWrite(bluePin, HIGH); // Encender LED azul
         }
         else
         {
@@ -352,9 +387,10 @@ int leerEntrada()
 
 void buzz()
 {
-  tone(buzzerPin, 800);
+  tone(buzzerPin, 2000);
 }
 
+#pragma region SensoresPuertaVentana
 void sensorHall()
 {
   if (stateMachine.GetState() == STATE_PUERTA_VENTANA)
@@ -378,7 +414,14 @@ void sensorMetal()
     input = Input::gateOpen;
   }
 }
+#pragma endregion SensoresPuertaVentana
 
+#pragma region entradaMaquina
+/**
+ * @brief Funciones para establecer la entrada de la máquina de estados en diferentes valores cuando se produce un evento de tiempo de espera
+ *
+ * Estas funciones se utilizan para establecer la entrada de la máquina de estados en diferentes valores cuando se produce un evento de tiempo de espera.
+ */
 void timeout1()
 {
 
@@ -397,13 +440,14 @@ void timeout3()
 void timeout4()
 {
 
-  input = Input::tempAndTime;
+  input = Input::tiempoTemp;
 }
+#pragma endregion entradaMaquina
 
 /**
  * @brief Función para medir la temperatura y actualizar el estado de la máquina de estados
  *
- * Esta función mide la temperatura y actualiza el estado de la máquina de estados según la temperatura medida. Si la temperatura es mayor o igual a 25 grados Celsius y el estado actual es STATE_MONITOR, se establece la entrada como "tempVeriffy". Si la temperatura es mayor o igual a 25 grados Celsius y el estado actual es STATE_ALARMA, se inicia una tarea asíncrona y se detiene la tarea asíncrona actual. Si la temperatura es menor que 25 grados Celsius y el estado actual es STATE_ALARMA, se establece la entrada como "tempVeriffy". También se lee la luz cada cierto intervalo de tiempo.
+ * Esta función mide la temperatura y actualiza el estado de la máquina de estados según la temperatura medida. Si la temperatura es mayor o igual a 25 grados Celsius y el estado actual es STATE_MONITOR, se establece la entrada como "verificarTemp". Si la temperatura es mayor o igual a 25 grados Celsius y el estado actual es STATE_ALARMA, se inicia una tarea asíncrona y se detiene la tarea asíncrona actual. Si la temperatura es menor que 25 grados Celsius y el estado actual es STATE_ALARMA, se establece la entrada como "verificarTemp". También se lee la luz cada cierto intervalo de tiempo.
  *
  * @param void
  * @return void
@@ -425,7 +469,7 @@ void medirTemp()
 
   if (isAmbientMonitor && value_Temp >= 25)
   {
-    input = Input::tempVeriffy;
+    input = Input::verificarTemp;
   }
 
   if (isAmbientAlarm && value_Temp >= 25 && execute < 1)
@@ -437,14 +481,14 @@ void medirTemp()
 
   if (isAmbientAlarm && value_Temp < 25)
   {
-    input = Input::tempVeriffy;
+    input = Input::verificarTemp;
   }
 
   unsigned long currentTime = millis();
   if (currentTime - lastReadLightTime >= readLightInterval)
   {
     delay(3000);
-    readLight();
+    medirLuz();
     lastReadLightTime = currentTime;
   }
 }
@@ -457,7 +501,7 @@ void medirTemp()
  * @param void
  * @return void
  */
-void readLight()
+void medirLuz()
 {
 
   int sensorValue = analogRead(photocellPin); // Leer el valor del sensor de luz
