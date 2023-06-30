@@ -156,10 +156,12 @@ void eventos()
  */
 void monitoreo()
 {
+
   lcd.clear();
   asyncTaskTime_2.Start();
   asyncTaskTemp.Start();
   tempOnState = 25.3;
+  digitalWrite(redPin, LOW); // Apagar LED rojo
 }
 
 /**
@@ -200,6 +202,7 @@ void alarmaSensores()
   input = (DHT.getTemperature() < 25.5) ? Input::verificarTemp : input;
 
   lcd.print("Alarma ambiente");
+  digitalWrite(redPin, HIGH); // Encender LED rojo
 }
 
 /**
@@ -276,12 +279,6 @@ void setup()
    */
   setupStateMachine();
 
-  delay(1000);
-  lcd.clear();
-
-  delay(500);
-  lcd.clear();
-
   /**
    * @brief Establecimiento del estado inicial de la máquina de estados
    *
@@ -334,11 +331,7 @@ int leerEntrada()
 
       for (int i = 0; i < 5; i++)
       {
-        if (inputPassword[i] != password[i])
-        {
-          correctPassword = false;
-          break;
-        }
+        correctPassword = (inputPassword[i] != password[i]) ? false : correctPassword;
       }
 
       lcd.clear();
@@ -346,7 +339,7 @@ int leerEntrada()
       if (correctPassword)
       {
         lcd.print("Clave correcta.");
-        delay(1000);
+        delay(800);
         currentInput = Input::claveCorrecta;
         // encender led verde
         digitalWrite(greenPin, HIGH);
@@ -452,6 +445,7 @@ void timeout4()
  * @param void
  * @return void
  */
+
 void medirTemp()
 {
   input = Input::Unknown;
@@ -459,9 +453,15 @@ void medirTemp()
   int chk = DHT.read22(DHT11_PIN);
 
   float value_Temp = DHT.getTemperature();
-  lcd.setCursor(0, 1);
+  float value_Humidity = DHT.getHumidity();
+
+  lcd.setCursor(0, 0);
   lcd.print("Temp: ");
   lcd.print(value_Temp);
+
+  lcd.setCursor(0, 1);
+  lcd.print("Hum: ");
+  lcd.print(value_Humidity);
 
   State currentState = stateMachine.GetState();
   bool isAmbientMonitor = (currentState == STATE_MONITOR);
@@ -487,7 +487,7 @@ void medirTemp()
   unsigned long currentTime = millis();
   if (currentTime - lastReadLightTime >= readLightInterval)
   {
-    delay(3000);
+    delay(2000);
     medirLuz();
     lastReadLightTime = currentTime;
   }
@@ -501,13 +501,13 @@ void medirTemp()
  * @param void
  * @return void
  */
+
 void medirLuz()
 {
-
   int sensorValue = analogRead(photocellPin); // Leer el valor del sensor de luz
-
+  lcd.clear();
   // Mostrar el valor del sensor de luz en la pantalla LCD
-  lcd.setCursor(0, 2);
+  lcd.setCursor(0, 0);
   lcd.print("Luz: ");
   lcd.print(sensorValue);
   delay(2000);
