@@ -143,7 +143,8 @@ void eventos()
   lcd.clear();
   asyncTaskTime_1.Start();
   asyncTaskTemp.Stop();
-  // lcd.print("En eventos");
+  lcd.print("PuertaVentana");
+  delay(2000);
 }
 
 /**
@@ -160,7 +161,7 @@ void monitoreo()
   lcd.clear();
   asyncTaskTime_2.Start();
   asyncTaskTemp.Start();
-  tempOnState = 25.3;
+  tempOnState = 20.3;
   digitalWrite(redPin, LOW); // Apagar LED rojo
 }
 
@@ -181,7 +182,7 @@ void alertaSeguridad()
   asyncTaskTime_4.Stop();
   asyncTaskTemp.Stop();
   asyncTaskTime_3.Start();
-  tempOnState = 24.5;
+  tempOnState = 20.5;
   lcd.print("Alerta seguridad");
   buzzer = true;
 }
@@ -199,7 +200,7 @@ void alarmaSensores()
   asyncTaskTime_2.Stop();
   lcd.clear();
 
-  input = (DHT.getTemperature() < 25.5) ? Input::verificarTemp : input;
+  input = (DHT.getTemperature() < 20.5) ? Input::verificarTemp : input;
 
   lcd.print("Alarma ambiente");
   digitalWrite(redPin, HIGH); // Encender LED rojo
@@ -450,7 +451,7 @@ void medirTemp()
 {
   input = Input::Unknown;
 
-  int chk = DHT.read22(DHT11_PIN);
+  int chk = DHT.read11(DHT11_PIN);
 
   float value_Temp = DHT.getTemperature();
   float value_Humidity = DHT.getHumidity();
@@ -467,19 +468,19 @@ void medirTemp()
   bool isAmbientMonitor = (currentState == STATE_MONITOR);
   bool isAmbientAlarm = (currentState == STATE_ALARMA);
 
-  if (isAmbientMonitor && value_Temp >= 25)
+  if (isAmbientMonitor && value_Temp >= 29)
   {
     input = Input::verificarTemp;
   }
 
-  if (isAmbientAlarm && value_Temp >= 25 && execute < 1)
+  if (isAmbientAlarm && value_Temp >= 29 && execute < 1)
   {
     execute++;
     asyncTaskTime_4.Start();
     asyncTaskTemp.Stop();
   }
 
-  if (isAmbientAlarm && value_Temp < 25)
+  if (isAmbientAlarm && value_Temp < 29)
   {
     input = Input::verificarTemp;
   }

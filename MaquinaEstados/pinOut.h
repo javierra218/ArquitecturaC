@@ -11,5 +11,5 @@
     const int greenPin = 16;
     const int bluePin = 17;
     const int intPinHall = 2;
-    const int intPinMetal = 1;
+    const int intPinMetal = A4;
     const int intPinTracking = 0;
