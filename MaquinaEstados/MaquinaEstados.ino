@@ -72,7 +72,6 @@ unsigned char i = 0;        /**< Índice para la contraseña ingresada */
 int failCount = 0;          /**< Contador de intentos fallidos de ingreso */
 bool bandera = false;       /**< Bandera para indicar si se debe ingresar la contraseña */
 bool buzzer = false;        /**< Bandera para indicar si debe sonar el zumbador */
-int outputValue = 0;        /**< Valor de salida actual */
 #pragma endregion Variables
 
 #pragma region enums
