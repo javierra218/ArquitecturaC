@@ -19,6 +19,14 @@
 #include <Keypad.h>
 #include "pinOut.h"
 
+#define DEBUG(a)          \
+  Serial.print(millis()); \
+  Serial.print(": ");     \
+  Serial.println(a);
+
+LiquidCrystal lcd(12, 11, 10, 9, 8, 7);
+DHTStable DHT;
+
 void timeout1();
 void timeout2();
 void timeout3();
@@ -30,14 +38,6 @@ void leerPass();
 void sensorHall();
 void sensorTracking();
 void sensorMetal();
-
-#define DEBUG(a)          \
-  Serial.print(millis()); \
-  Serial.print(": ");     \
-  Serial.println(a);
-
-LiquidCrystal lcd(12, 11, 10, 9, 8, 7);
-DHTStable DHT;
 
 #pragma region TareasAsinc
 AsyncTask asyncTaskTime_1(2000, timeout1);
