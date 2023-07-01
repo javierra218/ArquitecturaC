@@ -27,18 +27,6 @@
 LiquidCrystal lcd(12, 11, 10, 9, 8, 7);
 DHTStable DHT;
 
-void timeout1();
-void timeout2();
-void timeout3();
-void timeout4();
-void medirTemp();
-void medirLuz();
-void leerPass();
-
-void sensorHall();
-void sensorTracking();
-void sensorMetal();
-
 #pragma region TareasAsinc
 AsyncTask asyncTaskTime_1(2000, timeout1);
 AsyncTask asyncTaskTime_2(10000, timeout2);
@@ -56,6 +44,20 @@ char keys[KEYPAD_ROWS][KEYPAD_COLS] = {
 
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, KEYPAD_ROWS, KEYPAD_COLS);
 #pragma endregion keypad
+
+#pragma region Funciones
+void timeout1();
+void timeout2();
+void timeout3();
+void timeout4();
+void medirTemp();
+void medirLuz();
+void leerPass();
+
+void sensorHall();
+void sensorTracking();
+void sensorMetal();
+#pragma endregion Funciones
 
 #pragma region Variables
 int execute = 0; /**< Variable para indicar si se debe ejecutar una tarea */
